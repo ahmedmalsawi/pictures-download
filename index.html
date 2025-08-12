@@ -1,68 +1,133 @@
 <!doctype html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
   <title>Bulk Image Downloader (Excel → ZIP)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Tajawal font -->
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
-  <!-- Libraries: SheetJS, JSZip, FileSaver -->
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <main class="container">
-    <h1>Bulk Image Downloader</h1>
-    <p class="sub">Upload an Excel/CSV file with <strong>product code</strong> and <strong>image links</strong>. We’ll download and zip them.</p>
+    <h1 class="app-title">Bulk Image Downloader</h1>
+    <p class="sub">ارفع ملف Excel/CSV فيه <strong>كود المنتج</strong> و<strong>روابط الصور</strong>، واحنا هننزّل ونقسّم في ZIP.</p>
 
     <section class="card">
+      <!-- Fancy File Upload -->
       <div class="field">
-        <label for="fileInput">Excel/CSV file</label>
-        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+        <label class="muted">ملف Excel/CSV</label>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+        <label for="fileInput" id="fileLabel" class="file-drop">
+          <span class="file-icon">⬆️</span>
+          <span class="file-text">
+            اسحب وافلت الملف هنا، أو <b>اضغط للتحميل</b>
+            <small id="fileName" class="muted">لم يتم اختيار ملف</small>
+          </span>
+        </label>
       </div>
 
       <div class="grid two">
         <div class="field">
-          <label for="sheetName">Sheet name <span class="muted">(optional)</span></label>
-          <input id="sheetName" type="text" placeholder="Leave empty to use first sheet" />
+          <label for="sheetName">اسم الشيت <span class="muted">(اختياري)</span></label>
+          <input id="sheetName" type="text" placeholder="سيتم استخدام أول شيت لو فاضي" />
         </div>
         <div class="field">
-          <label for="concurrency">Max parallel downloads</label>
-          <input id="concurrency" type="number" min="1" max="12" value="5" />
+          <label for="concurrency">عدد التحميلات المتوازية</label>
+          <input id="concurrency" type="number" min="1" max="12" value="6" />
         </div>
       </div>
 
-      <details class="hint">
-        <summary>Expected columns & format</summary>
-        <ul>
-          <li>Headers auto-detected: <code>code|sku|product</code> for product; <code>links|images|image_urls</code> for URLs.</li>
-          <li>If no headers, we assume: Column A = code, Column B = links.</li>
-          <li>Multiple links can be separated by commas, semicolons, or new lines.</li>
-        </ul>
-        <pre class="example">
-code,links
-ABC123,"https://site/p1.jpg, https://site/p2.png"
-XYZ9,https://site/x1.jpg
-        </pre>
-      </details>
+      <div class="grid two">
+        <div class="field">
+          <label for="maxZipFiles">أقصى عدد ملفات في كل ZIP</label>
+          <input id="maxZipFiles" type="number" min="50" value="300" />
+        </div>
+        <div class="field">
+          <label for="maxZipMB">أقصى حجم ZIP (MB)</label>
+          <input id="maxZipMB" type="number" min="50" value="200" />
+        </div>
+      </div>
 
-      <button id="startBtn" disabled>Start Download</button>
+      <div class="grid two">
+        <div class="field checkbox">
+          <input id="groupByProduct" type="checkbox" />
+          <label for="groupByProduct">حطّ صور كل منتج جوّه مجلد باسم الكود داخل الـ ZIP</label>
+        </div>
+        <div class="field buttons-inline">
+          <button id="estimateBtn" class="btn-secondary" disabled>اعمل تقدير</button>
+          <button id="startBtn" disabled>ابدأ التحميل</button>
+        </div>
+      </div>
     </section>
 
+    <!-- Dashboard -->
     <section class="card">
-      <div class="progress-wrap">
-        <div id="progressBar" class="progress"></div>
+      <h3 class="section-title">Dashboard</h3>
+      <div class="dash-grid">
+        <div class="kpi">
+          <div class="kpi-title">كل المنتجات في الملف</div>
+          <div class="kpi-value" id="kpi-total-products">—</div>
+          <div class="kpi-foot muted" id="kpi-total-products-note"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">منتجات فيها روابط</div>
+          <div class="kpi-value" id="kpi-products-with-links">—</div>
+          <div class="kpi-foot">
+            <span class="badge" id="kpi-coverage">—</span>
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">إجمالي الروابط</div>
+          <div class="kpi-value" id="kpi-total-links">—</div>
+          <div class="kpi-foot muted" id="kpi-ext-top">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">أجزاء الـ ZIP المتوقعة</div>
+          <div class="kpi-value" id="kpi-est-parts">—</div>
+          <div class="kpi-foot muted" id="kpi-zip-limits">—</div>
+        </div>
       </div>
+
+      <div class="dash-rows">
+        <div class="dash-card">
+          <div class="dash-card-title">توزيع الامتدادات</div>
+          <canvas id="extChart" height="220"></canvas>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-card-title">تقدير الأحجام</div>
+          <div class="size-rows">
+            <div class="size-row"><div>متاح بالحجم (HEAD):</div><div id="known-count">—</div></div>
+            <div class="size-row"><div>إجمالي معروف:</div><div id="known-total">—</div></div>
+            <div class="size-row"><div>متوسط الحجم:</div><div id="avg-size">—</div></div>
+            <div class="size-row"><div>أصغر / أكبر:</div><div id="min-max">—</div></div>
+            <div class="size-row"><div>إجمالي تقديري قبل الضغط:</div><div id="est-total">—</div></div>
+            <div class="size-row"><div>إجمالي تقديري داخل ZIP:</div><div id="est-zip">—</div></div>
+            <div class="meter-wrap">
+              <div class="meter-label">نسبة الروابط اللي قدرنا نجيب حجمها</div>
+              <div class="meter"><div class="meter-bar" id="known-meter" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress + Log -->
+      <div class="progress-wrap"><div id="progressBar" class="progress"></div></div>
       <div class="progress-stats">
         <span id="statCounts">0 / 0</span>
-        <span id="statStatus">Waiting for file…</span>
+        <span id="statStatus">في انتظار الملف…</span>
       </div>
+
       <div id="log" class="log"></div>
     </section>
 
-    <footer class="footnote">
-      Having CORS issues? The image host must allow cross-origin requests for the browser to fetch and zip images.
-    </footer>
+    <footer class="footnote">لو ظهر CORS في التقدير/التحميل: لازم السيرفر يسمح بالطلبات عبر المتصفح.</footer>
   </main>
 
   <script src="script.js"></script>
