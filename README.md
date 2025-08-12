@@ -58,6 +58,17 @@ A lightweight **web app** built with **HTML, CSS, and JavaScript** that allows y
 
 ---
 
+## 🚀 Pro Features
+- Robust networking: **Retry + Timeout + Backoff**, and **per-host rate limiting**.
+- Controls: **Pause / Resume / Cancel** during download.
+- Smart parsing: **Manual column selection** + preview top 50 rows.
+- Naming & org: **Custom filename patterns** and **folder-per-product**.
+- Safety: **Whitelist/Blacklist** by domains.
+- Insights: ETA & download speed, **extension pie**, **top host bar**, **size histogram**.
+- Estimation: HEAD-based size estimation; shows known/unknown, min/avg/max, total, and expected ZIP parts.
+- Reporting: Export **full CSV report** and **failures-only CSV** after run.
+
+
 ## 📜 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -68,5 +79,6 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 
 ---
 
+
 ## 💡 Author
-Developed by **[Your Name]**
+Developed by **[Ahmed Elsawi]**

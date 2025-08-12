@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>Bulk Image Downloader (Excel → ZIP)</title>
+  <title>Bulk Image Downloader (Excel → ZIP) — Pro</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- Tajawal font -->
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -15,8 +15,8 @@
 </head>
 <body>
   <main class="container">
-    <h1 class="app-title">Bulk Image Downloader</h1>
-    <p class="sub">ارفع ملف Excel/CSV فيه <strong>كود المنتج</strong> و<strong>روابط الصور</strong>، واحنا هننزّل ونقسّم في ZIP.</p>
+    <h1 class="app-title">Bulk Image Downloader — Pro</h1>
+    <p class="sub">ارفع ملف Excel/CSV فيه <strong>كود المنتج</strong> و<strong>روابط الصور</strong>، هنحمّل ونقسّم في ZIP — مع لوحة إحصائيات وتقارير.</p>
 
     <section class="card">
       <!-- Fancy File Upload -->
@@ -32,7 +32,7 @@
         </label>
       </div>
 
-      <div class="grid two">
+      <div class="grid three">
         <div class="field">
           <label for="sheetName">اسم الشيت <span class="muted">(اختياري)</span></label>
           <input id="sheetName" type="text" placeholder="سيتم استخدام أول شيت لو فاضي" />
@@ -41,9 +41,13 @@
           <label for="concurrency">عدد التحميلات المتوازية</label>
           <input id="concurrency" type="number" min="1" max="12" value="6" />
         </div>
+        <div class="field">
+          <label for="perHost">حد لكل دومين</label>
+          <input id="perHost" type="number" min="1" max="8" value="4" />
+        </div>
       </div>
 
-      <div class="grid two">
+      <div class="grid three">
         <div class="field">
           <label for="maxZipFiles">أقصى عدد ملفات في كل ZIP</label>
           <input id="maxZipFiles" type="number" min="50" value="300" />
@@ -52,14 +56,39 @@
           <label for="maxZipMB">أقصى حجم ZIP (MB)</label>
           <input id="maxZipMB" type="number" min="50" value="200" />
         </div>
+        <div class="field">
+          <label for="maxPerProduct">حد صور لكل منتج <span class="muted">(0 = بدون حد)</span></label>
+          <input id="maxPerProduct" type="number" min="0" value="0" />
+        </div>
       </div>
 
-      <div class="grid two">
+      <div class="grid three">
+        <div class="field">
+          <label for="namingPattern">قالب التسمية</label>
+          <input id="namingPattern" type="text" value="${code}/${code}_${seq}.${ext}" />
+          <small class="muted">المتغيرات: <code>${code}</code> <code>${seq}</code> <code>${ext}</code></small>
+        </div>
+        <div class="field">
+          <label for="whitelist">Whitelist دومينات</label>
+          <input id="whitelist" type="text" placeholder="example.com, img.cdn.com" />
+        </div>
+        <div class="field">
+          <label for="blacklist">Blacklist دومينات</label>
+          <input id="blacklist" type="text" placeholder="bad.host.com, ..." />
+        </div>
+      </div>
+
+      <div class="grid three">
         <div class="field checkbox">
-          <input id="groupByProduct" type="checkbox" />
-          <label for="groupByProduct">حطّ صور كل منتج جوّه مجلد باسم الكود داخل الـ ZIP</label>
+          <input id="groupByProduct" type="checkbox" checked />
+          <label for="groupByProduct">حطّ صور كل منتج جوّه مجلد باسم الكود</label>
+        </div>
+        <div class="field checkbox">
+          <input id="manualSelect" type="checkbox" />
+          <label for="manualSelect">اختيار الأعمدة يدويًا بعد قراءة الملف</label>
         </div>
         <div class="field buttons-inline">
+          <button id="previewBtn" class="btn-secondary" disabled>معاينة أول 50 صف</button>
           <button id="estimateBtn" class="btn-secondary" disabled>اعمل تقدير</button>
           <button id="startBtn" disabled>ابدأ التحميل</button>
         </div>
@@ -101,6 +130,16 @@
         </div>
 
         <div class="dash-card">
+          <div class="dash-card-title">أعلى الدومينات</div>
+          <canvas id="hostChart" height="220"></canvas>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-card-title">Histogram لأحجام الصور (تقديري)</div>
+          <canvas id="sizeChart" height="220"></canvas>
+        </div>
+
+        <div class="dash-card">
           <div class="dash-card-title">تقدير الأحجام</div>
           <div class="size-rows">
             <div class="size-row"><div>متاح بالحجم (HEAD):</div><div id="known-count">—</div></div>
@@ -117,6 +156,14 @@
         </div>
       </div>
 
+      <!-- Controls during download -->
+      <div class="controls-row">
+        <button id="pauseBtn" class="btn-ghost" disabled>⏸️ إيقاف مؤقت</button>
+        <button id="resumeBtn" class="btn-ghost" disabled>▶️ استكمال</button>
+        <button id="cancelBtn" class="btn-ghost danger" disabled>⛔ إلغاء</button>
+        <div class="eta muted" id="etaText">ETA: — | السرعة: — روابط/ث</div>
+      </div>
+
       <!-- Progress + Log -->
       <div class="progress-wrap"><div id="progressBar" class="progress"></div></div>
       <div class="progress-stats">
@@ -124,11 +171,45 @@
         <span id="statStatus">في انتظار الملف…</span>
       </div>
 
+      <div class="actions-row">
+        <button id="exportReportBtn" class="btn-secondary" disabled>تصدير تقرير CSV</button>
+        <button id="exportFailuresBtn" class="btn-secondary" disabled>تصدير الفشل فقط</button>
+      </div>
+
       <div id="log" class="log"></div>
     </section>
 
     <footer class="footnote">لو ظهر CORS في التقدير/التحميل: لازم السيرفر يسمح بالطلبات عبر المتصفح.</footer>
   </main>
+
+  <!-- Manual column picker modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">اختيار الأعمدة يدويًا</div>
+        <button id="modalClose" class="btn-ghost">✖</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid two">
+          <div class="field">
+            <label for="codeCol">عمود الكود</label>
+            <select id="codeCol"></select>
+          </div>
+          <div class="field">
+            <label for="linksCol">عمود الروابط</label>
+            <select id="linksCol"></select>
+          </div>
+        </div>
+        <div class="preview-table" id="previewTable"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="applyColsBtn">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toasts" class="toasts"></div>
 
   <script src="script.js"></script>
 </body>
