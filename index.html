@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Bulk Image Downloader (Excel → ZIP)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Libraries: SheetJS, JSZip, FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Bulk Image Downloader</h1>
+    <p class="sub">Upload an Excel/CSV file with <strong>product code</strong> and <strong>image links</strong>. We’ll download and zip them.</p>
+
+    <section class="card">
+      <div class="field">
+        <label for="fileInput">Excel/CSV file</label>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+      </div>
+
+      <div class="grid two">
+        <div class="field">
+          <label for="sheetName">Sheet name <span class="muted">(optional)</span></label>
+          <input id="sheetName" type="text" placeholder="Leave empty to use first sheet" />
+        </div>
+        <div class="field">
+          <label for="concurrency">Max parallel downloads</label>
+          <input id="concurrency" type="number" min="1" max="12" value="5" />
+        </div>
+      </div>
+
+      <details class="hint">
+        <summary>Expected columns & format</summary>
+        <ul>
+          <li>Headers auto-detected: <code>code|sku|product</code> for product; <code>links|images|image_urls</code> for URLs.</li>
+          <li>If no headers, we assume: Column A = code, Column B = links.</li>
+          <li>Multiple links can be separated by commas, semicolons, or new lines.</li>
+        </ul>
+        <pre class="example">
+code,links
+ABC123,"https://site/p1.jpg, https://site/p2.png"
+XYZ9,https://site/x1.jpg
+        </pre>
+      </details>
+
+      <button id="startBtn" disabled>Start Download</button>
+    </section>
+
+    <section class="card">
+      <div class="progress-wrap">
+        <div id="progressBar" class="progress"></div>
+      </div>
+      <div class="progress-stats">
+        <span id="statCounts">0 / 0</span>
+        <span id="statStatus">Waiting for file…</span>
+      </div>
+      <div id="log" class="log"></div>
+    </section>
+
+    <footer class="footnote">
+      Having CORS issues? The image host must allow cross-origin requests for the browser to fetch and zip images.
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
